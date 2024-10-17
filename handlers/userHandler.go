@@ -2,8 +2,13 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
+	"log"
+
 	"encoding/json"
 	"net/http"
+
+	_ "github.com/lib/pq"
 
 	"github.com/harshgupta9473/recruitmentManagement/middleware"
 	"github.com/harshgupta9473/recruitmentManagement/models"
@@ -25,24 +30,27 @@ func (u *UserHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var usereq models.User
 	err := json.NewDecoder(r.Body).Decode(&usereq)
 	if err != nil {
-		http.Error(w, "error occured", http.StatusInternalServerError)
+		http.Error(w, "error occured 1 ", http.StatusInternalServerError)
 		return
 	}
 	tmpuser, err := utils.FindUserByEmail(usereq.Email)
 	if err != nil {
-		http.Error(w, "error occured", http.StatusInternalServerError)
+		http.Error(w, "error occured 2 ", http.StatusInternalServerError)
 		return
 	}
 	if tmpuser == nil {
 		
 		err = utils.InsertIntoUser(&usereq)
 		if err != nil {
-			http.Error(w, "error occured", http.StatusInternalServerError)
+			http.Error(w, "error occured 3 ", http.StatusInternalServerError)
 			return
 		}
 	} else {
 		utils.WriteJSON(w, http.StatusContinue, "you are already signup Login to access account")
+		return
 	}
+	utils.WriteJSON(w,http.StatusOK,"successful signup login to access your account")
+
 }
 
 func (u *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
@@ -67,14 +75,17 @@ func (u *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User not found", http.StatusUnauthorized)
 		return
 	}
+	log.Println(user.Password)
+	log.Println(loginReq.Password)
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginReq.Password))
 	if err != nil {
+		fmt.Println(err)
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}
 
-	token, err := middleware.CreateJWT(user.Email, user.CreatedAt, uint64(user.ID),user.UserType)
+	token, err := middleware.CreateJWT(user.Email, user.CreatedAt, (user.ID),user.UserType)
 	if err != nil {
 		http.Error(w, "Error generating token", http.StatusInternalServerError)
 		return
@@ -89,7 +100,7 @@ func (u *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 func (u *UserHandler)GetAllJobs(w http.ResponseWriter,r *http.Request){
 	jobs,err:=utils.GetAllJobs()
 	if err!=nil{
-		http.Error(w," error",http.StatusInternalServerError)
+		http.Error(w,"error",http.StatusInternalServerError)
 		return
 	}
 	utils.WriteJSON(w,http.StatusOK,jobs)

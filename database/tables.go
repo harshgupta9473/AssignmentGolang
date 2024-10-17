@@ -1,6 +1,12 @@
 package database
 
-import "database/sql"
+import (
+	"database/sql"
+
+	_ "github.com/lib/pq"
+
+	"log"
+)
 
 // func CreateTempUserTable(DB *sql.DB) error {
 // 	query := `create table if not exists tempusers(
@@ -20,14 +26,14 @@ import "database/sql"
 // 	return err
 // }
 
-func CreateJob_ApplicationTable(DB *sql.DB)error{
-    query:=`CREATE TABLE IF NOT EXISTS job_applications (
+func CreateJob_ApplicationTable(DB *sql.DB) error {
+	query := `CREATE TABLE IF NOT EXISTS job_applications (
     id SERIAL PRIMARY KEY,
     job_id INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
     applicant_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    applied_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    applied_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`
-    _, err := DB.Exec(query)
+	_, err := DB.Exec(query)
 	return err
 }
 
@@ -37,7 +43,7 @@ func CreateUsersTable(DB *sql.DB) error {
         name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         address TEXT,
-        user_type VARCHAR(50) NOT NULL CHECK (user_type IN ('Admin', 'Applicant')),
+        user_type VARCHAR(50) NOT NULL CHECK (user_type IN ('admin', 'applicant')),
         password_hash VARCHAR(255) NOT NULL,
         profile_headline TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -46,6 +52,7 @@ func CreateUsersTable(DB *sql.DB) error {
 	_, err := DB.Exec(query)
 	return err
 }
+
 func CreateProfilesTable(DB *sql.DB) error {
 	query := `CREATE TABLE IF NOT EXISTS profiles (
         id SERIAL PRIMARY KEY,
@@ -74,4 +81,24 @@ func CreateJobsTable(DB *sql.DB) error {
     )`
 	_, err := DB.Exec(query)
 	return err
+}
+
+func InitTable(db *sql.DB) {
+	err := CreateUsersTable(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = CreateProfilesTable(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = CreateJobsTable(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+    err=CreateJob_ApplicationTable(db)
+    if err!=nil{
+        log.Fatal(err)
+    }
+
 }

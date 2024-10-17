@@ -12,7 +12,7 @@ import (
 )
 
 type UserClaims struct {
-	ID        uint64
+	ID        uint
 	Email     string
 	CreatedAt time.Time
 	Type  string
@@ -24,40 +24,70 @@ const userContextKey contextKey = "userClaims"
 
 func AuthJwt(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Get the token from the "Authorization" header
+		
 		tokenString := r.Header.Get("AuthToken")
 		if tokenString == "" {
 			http.Error(w, "Authorization header missing", http.StatusUnauthorized)
 			return
 		}
 
-		// Validate the token
+		
 		token, err := ValidateJWT(tokenString)
 		if err != nil || !token.Valid {
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
 
-		// If valid, set the user ID or email to context (optional)
+		
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			userClaims := UserClaims{
-				ID:        uint64(claims["id"].(float64)), // Convert to uint64 if necessary
-				Email:     claims["user"].(string),
-				CreatedAt: time.Unix(int64(claims["created_at"].(float64)), 0), // Convert to time.Time
-				Type: claims["type"].(string),
+			var userClaims UserClaims
+
+			
+			if id, ok := claims["id"].(float64); ok {
+				userClaims.ID = uint(id)
+			} else {
+				http.Error(w, "Invalid token payload: id", http.StatusUnauthorized)
+				return
 			}
 
-			// Create a new context with the user info
+			
+			if email, ok := claims["user"].(string); ok {
+				userClaims.Email = email
+			} else {
+				http.Error(w, "Invalid token payload: user", http.StatusUnauthorized)
+				return
+			}
+
+			
+			if createdAt, ok := claims["created_at"].(float64); ok {
+				userClaims.CreatedAt = time.Unix(int64(createdAt), 0)
+			} else {
+				http.Error(w, "Invalid token payload: created_at", http.StatusUnauthorized)
+				return
+			}
+
+			
+			if userType, ok := claims["type"].(string); ok {
+				userClaims.Type = userType
+			} else {
+				http.Error(w, "Invalid token payload: type", http.StatusUnauthorized)
+				return
+			}
+
+			
 			ctx := context.WithValue(r.Context(), userContextKey, userClaims)
 			r = r.WithContext(ctx)
+		} else {
+			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+			return
 		}
 
-		// Proceed to the next handler
+		
 		next.ServeHTTP(w, r)
 	})
 }
 
-func CreateJWT(email string, createdAt time.Time, id uint64,userType string) (string, error) {
+func CreateJWT(email string, createdAt time.Time, id uint,userType string) (string, error) {
 	err := godotenv.Load()
 	if err != nil {
 		return "", err
@@ -68,7 +98,7 @@ func CreateJWT(email string, createdAt time.Time, id uint64,userType string) (st
 		"type":       userType,
 		"user":       email,
 		"exp":        time.Now().Add(24 * time.Hour).Unix(),
-		"created_at": createdAt,
+		"created_at": createdAt.Unix(),
 	})
 	tokenString, err := token.SignedString([]byte(key))
 	if err != nil {

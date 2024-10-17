@@ -12,17 +12,14 @@ import (
 )
 
 func FindUserByEmail(email string) (*models.User, error) {
-	// Prepare the SQL query
+	
 	db := config.GetDB()
-	query := `SELECT id, name, email, address, user_type, password_hash, profile_headline, 
-                     created_at, updated_at, otp, verified 
-              FROM users 
-              WHERE email = $1`
+	query := `SELECT * FROM users WHERE email = $1`
 
-	// Execute the query
+	
 	row := db.QueryRow(query, email)
 
-	// Create a TempUser to hold the result
+	
 	var user models.User
 	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Address, &user.UserType,
 		&user.Password, &user.ProfileHeadline, &user.CreatedAt, &user.UpdatedAt)
@@ -33,25 +30,42 @@ func FindUserByEmail(email string) (*models.User, error) {
 			return nil, nil
 		}
 		// Log any other error
-		log.Println("Error scanning temp user:", err)
+		log.Println("Error scanning user:", err)
 		return nil, err
 	}
 
 	return &user, nil
 }
 
+// type User struct {
+//     ID              uint      `json:"id"`
+//     Name            string    `json:"name"`
+//     Email           string    `json:"email"`
+//     Address         string    `json:"address"`
+//     UserType        string    `json:"userType"` // "Admin" or "Applicant"
+//     Password    string        `json:"-"`
+//     ProfileHeadline string    `json:"profileHeadline"`
+//     CreatedAt       time.Time  `json:"created_at"`
+//     UpdatedAt       time.Time  `json:"updated_at"`
+// }
+
 func InsertIntoUser(user *models.User) error {
 
 	// Prepare the SQL query
-	query := `INSERT INTO tempusers (name, email, address, user_type,encrypted_password, profile_headline, 
+	query := `INSERT INTO users (name, email, address, user_type,password_hash, profile_headline, 
                      created_at, updated_at)
               VALUES ($1, $2, $3, $4, $5, $6, current_timestamp, current_timestamp)`
 
 	// Execute the query
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	hashedPassword, err:= bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err!=nil{
+		return err
+	}
+	log.Println(user.Password)
 	user.Password = string(hashedPassword)
 	db := config.GetDB()
-	_, err := db.Exec(query, user.Name, user.Email, user.Address, user.UserType, user.Password,
+	log.Println(user.Password)
+	_, err = db.Exec(query, user.Name, user.Email, user.Address, user.UserType, user.Password,
 		user.ProfileHeadline)
 
 	if err != nil {
@@ -81,20 +95,20 @@ func InsertIntoUser(user *models.User) error {
 func InsertIntoJobs(jobreq *models.JobLisitingReq) error {
 	query := `
     INSERT INTO jobs (title, description,posted_on,total_applications, company_name, posted_by_id)
-    VALUES ($1, $2, $3, $4,$5)
+    VALUES ($1, $2, $3, $4,$5,$6)
     RETURNING id`
 
 	db := config.GetDB()
-	err := db.QueryRow(query, jobreq.Title, jobreq.Description, time.Now().UTC(), jobreq.TotalApplications, jobreq.CompanyName, jobreq.PostedByID)
+	_,err := db.Exec(query, jobreq.Title, jobreq.Description, time.Now().UTC(), 0, jobreq.CompanyName, jobreq.PostedByID)
 	if err != nil {
-		return fmt.Errorf("error inserting job: %w", err.Err())
+		return fmt.Errorf("error inserting job: %w", err)
 	}
 
 	return nil
 }
 
 func FindJobByID(id uint) (*models.Job, error) {
-	var job *models.Job
+	var job models.Job
 	query := `select * from jobs where id=$1`
 	db := config.GetDB()
 	result := db.QueryRow(query, id)
@@ -108,7 +122,7 @@ func FindJobByID(id uint) (*models.Job, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error in scanning the job from result")
 	}
-	return job, nil
+	return &job, nil
 }
 
 func InsertJobApplication(jobID, applicantID uint) error {
@@ -240,12 +254,12 @@ func ApplyForJob(jobID uint, applicantID uint)error{
 
 	_, err = tx.Exec("INSERT INTO job_applications (job_id, applicant_id) VALUES ($1, $2)", jobID, applicantID)
     if err != nil {
-        return err // Return the error which will trigger rollback
+        return err 
     }
 
 	_, err = tx.Exec("UPDATE jobs SET total_applications = total_applications + 1 WHERE id = $1", jobID)
     if err != nil {
-        return err // Return the error which will trigger rollback
+        return err 
     }
 	if err:=tx.Commit(); err!=nil{
 		return err
@@ -253,6 +267,16 @@ func ApplyForJob(jobID uint, applicantID uint)error{
 	return nil
 }
 
+func InsertIntoProfile(userId uint,address ,skills,education,experience,name, email,phone string)error{
+	query:=`INSERT INTO profiles (user_id, resume_file_address, skills, education, experience, name, email, phone) 
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	db:=config.GetDB()
+	_,err:=db.Exec(query,userId,address,skills,education,experience,name,email,phone)
+	if err!=nil{
+		return err
+	}
+	return nil
+}
 
 
 // type Job struct {

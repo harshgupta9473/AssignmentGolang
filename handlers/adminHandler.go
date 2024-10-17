@@ -2,11 +2,16 @@ package handlers
 
 import (
 	"database/sql"
+	"log"
+
 	"encoding/json"
 	"net/http"
 	"strconv"
 
+	_ "github.com/lib/pq"
+
 	"github.com/gorilla/mux"
+	"github.com/harshgupta9473/recruitmentManagement/middleware"
 	"github.com/harshgupta9473/recruitmentManagement/models"
 	"github.com/harshgupta9473/recruitmentManagement/utils"
 )
@@ -28,6 +33,13 @@ func (AH *AdminHandler) CreateJobOpenings(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
+	userInfo,err:=middleware.ExtractUserClaimsFromContext(r)
+	if err!=nil{
+		http.Error(w,err.Error(),http.StatusInternalServerError)
+		return
+	}
+	log.Println(userInfo.ID)
+	jobReq.PostedByID=userInfo.ID
 	err = utils.InsertIntoJobs(&jobReq)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
