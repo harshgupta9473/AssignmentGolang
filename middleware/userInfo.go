@@ -15,7 +15,7 @@ import (
 
 func InfoMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Retrieve user info from the context
+	
 		userInfo, ok := r.Context().Value(userContextKey).(UserClaims)
 		if !ok  {
 			http.Error(w, "Unauthorized: Could not retrieve user info 2", http.StatusUnauthorized)
@@ -24,7 +24,6 @@ func InfoMiddleware(next http.Handler) http.Handler {
 		
 		
 
-		// Check if user exists
 		if !FindUser(userInfo.Email, userInfo.ID, userInfo.Type) {
 			http.Error(w, "Unauthorized 1", http.StatusUnauthorized)
 			return
@@ -44,14 +43,14 @@ func FindUser(email string, id uint,  userType string) bool {
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			// No user found
+			
 			return false
 		}
 		
 		log.Println("Error querying user:", err)
 		return false
 	}
-	return true // User exists
+	return true 
 }
 
 
