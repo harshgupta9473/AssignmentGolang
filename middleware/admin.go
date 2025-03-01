@@ -11,7 +11,6 @@ func AuthAdmin(next http.Handler) http.Handler {
 			http.Error(w, "Unauthorized: Could not retrieve user info admin", http.StatusUnauthorized)
 			return
 		}
-		// Extract necessary fields from userInfo
 		// email, okEmail := userInfo["user"].(string)
 		// id, okID := userInfo["id"].(uint)
 		// createdAt, okCreatedAt := userInfo["created_at"].(time.Time)
